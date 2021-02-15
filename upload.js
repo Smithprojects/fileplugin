@@ -38,6 +38,7 @@ export function upload(selector, options = {}) {
             //данный обработчик ставим раньше передачи файла тк загрузка ассинхронна может выполниться раньше
             reader.onload = ev => {
                 console.log(ev)
+                console.log(ev)
             }
 
             reader.readAsDataURL(file)
