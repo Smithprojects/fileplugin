@@ -1,10 +1,48 @@
+function bytesToSize(bytes) {
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
+    if (!bytes) {
+        return '0 Byte'
+    }
+
+    const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)))
+    return Math.round(bytes / Math.pow(1024, i)) + ' ' + sizes[i]
+}
+
+//функция для создания дом элемента
+const element = (tag, classes = [], content) => {
+    const node = document.createElement(tag)
+
+    if (classes.length) {
+        node.classList.add(...classes)
+    }
+
+    if (content) {
+        node.textContent = content
+    }
+
+    return node
+}
+
+function noop() {}
+
 export function upload(selector, options = {}) {
+    let files = []
+    const onUpload = options.onUpload ?? noop
     const input = document.querySelector(selector)
+    const preview = document.createElement('div')
+
+    preview.classList.add('preview')
 
     const open = document.createElement('button')
     open.classList.add('btn')
     open.textContent = 'Открыть'
 
+    // const upload = document.createElement('button')
+    // upload.classList.add('btn', 'primary')
+    // upload.textContent = 'Загрузить'
+    const upload = element('button', ['btn', 'primary'], 'Загрузить')
+    upload.style.display = 'none'
+    // console.log(upload)
     if (options.multi) {
         input.setAttribute('multiple', true)
     }
@@ -13,6 +51,8 @@ export function upload(selector, options = {}) {
         input.setAttribute('accept', options.accept.join(','))
     }
 
+    input.insertAdjacentElement('afterend', preview)
+    input.insertAdjacentElement('afterend', upload)
     input.insertAdjacentElement('afterend', open)
 
 
@@ -26,8 +66,12 @@ export function upload(selector, options = {}) {
         // const {files} = event.target
 
         //приводим список к массиву
-        const files = Array.from(event.target.files)
+        files = Array.from(event.target.files)
 
+        //очищаем 
+        preview.innerHTML = ''
+        upload.style.display = 'inline'
+        
         files.forEach(file => {
             //не содержиться image не работаем с этим файлом
             if (!file.type.match('image')) {
@@ -37,8 +81,20 @@ export function upload(selector, options = {}) {
             const reader = new FileReader()
             //данный обработчик ставим раньше передачи файла тк загрузка ассинхронна может выполниться раньше
             reader.onload = ev => {
-                console.log(ev)
-                console.log(ev)
+                const src = ev.target.result
+                // console.log(ev.target.result)
+                // afterend - после, afterbegin - внутри
+                // input.insertAdjacentHTML('afterend', `<img src="${ev.target.result}"/>`)
+                preview.insertAdjacentHTML('afterbegin', `
+                <div class="preview-image">
+                    <div class="preview-remove" data-name="${file.name}">&times;</div>
+                    <img src="${src}" alt="${file.name}"/>
+                    <div class="preview-info">
+                        <span>${file.name}</span>
+                        ${bytesToSize(file.size)}
+                    </div>
+                </div>
+                `)
             }
 
             reader.readAsDataURL(file)
@@ -47,9 +103,50 @@ export function upload(selector, options = {}) {
 
 
     }
+
+    const removeHandler = event => {
+        // console.log('event', event.target.dataset)
+
+        if (!event.target.dataset.name) {
+            return
+        }
+
+        const {name} = event.target.dataset
+        files = files.filter(file => file.name !== name )
+
+        if (!files.length) {
+            upload.style.display = 'none'
+        }
+
+        const block = preview
+            .querySelector(`[data-name="${name}"]`)
+            .closest('.preview-image')
+
+        // console.log(block)
+        block.classList.add('removing')
+        setTimeout(() => block.remove(), 300)
+    }
+
+    const clearePreview = el => {
+        console.log('worck')
+        el.style.bottom = '0px'
+        el.innerHTML = '<div class="preview-info-progress"></div>'
+    }
+
+    const uploadHandler = () => {
+        preview.querySelectorAll('.preview-remove').forEach(e => e.remove())
+        const previewInfo = preview.querySelectorAll('.preview-info')
+        previewInfo.forEach(clearePreview)
+
+        onUpload(files, previewInfo)
+    }
+
+
     
     open.addEventListener('click', triggerInput)
     input.addEventListener('change', changeHandler)
+    preview.addEventListener('click', removeHandler)
+    upload.addEventListener('click', uploadHandler)
 
 
 }
